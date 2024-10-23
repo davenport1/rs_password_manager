@@ -40,18 +40,20 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+    let settings: AppSettings = config().expect("Failed to retrieve appsettings");
 
     match &cli.command {
         Commands::Add { service } => {
-            add_password(service);
+            add_password(service, settings);
         }
         Commands::Get { service } => {
             println!("Retrieving password for service: {}", service);
+            get_password(service, settings);
         }
     }
 }
 
-fn add_password(service: &str) {
+fn add_password(service: &str, settings: AppSettings) {
     println!("Enter your master password");
     let master_password = read_password().expect("Failed to read master password");
 
@@ -80,7 +82,7 @@ fn add_password(service: &str) {
     println!("Password for {} saved.", service)
 }
 
-fn get_password(service: &str) {
+fn get_password(service: &str, settings: AppSettings) {
     println!("Enter your master password");
     let master_password = read_password().expect("Failed to read master password");
 
@@ -92,8 +94,7 @@ fn get_password(service: &str) {
         .try_into()
         .unwrap();
 
-    // Fetch the encrypted password from the file (you'd parse the file in a real implementation)
-    let encrypted_password = vec![/* fetch from file */];
+    let encrypted_password = vec![];
 
     let password = decrypt_password(encrypted_password, &key);
 
