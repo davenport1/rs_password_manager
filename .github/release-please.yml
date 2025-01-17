@@ -1,0 +1,25 @@
+release-type: rust
+include-component-in-tag: false
+packages:
+  .:
+    component: rs-password-manager
+    package-name: rs-password-manager
+changelog-sections:
+  - type: feat
+    section: Features
+    hidden: false
+  - type: fix
+    section: Bug Fixes
+    hidden: false
+  - type: chore
+    section: Maintenance
+    hidden: false
+  - type: docs
+    section: Documentation
+    hidden: false
+  - type: test
+    section: Testing
+    hidden: false
+  - type: security
+    section: Security
+    hidden: false 
