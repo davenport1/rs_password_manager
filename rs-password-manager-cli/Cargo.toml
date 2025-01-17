@@ -1,0 +1,16 @@
+[package]
+name = "rs-password-manager-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "CLI interface for the rs-password-manager"
+
+[dependencies]
+rs-password-manager = { path = "../rs-password-manager" }
+clap.workspace = true
+rpassword.workspace = true
+config.workspace = true
+serde.workspace = true
+serde_json.workspace = true 

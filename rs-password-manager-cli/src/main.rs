@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use config::{Config, ConfigError};
 use rpassword::read_password;
 use serde::Deserialize;
-use rs_password_manager::{PasswordManager, PasswordConfig};
+use rs_password_manager::{PasswordManager, PasswordConfig, KeyDerivation};
 
 #[derive(Parser)]
 #[command(name = "Password Manager")]
@@ -49,6 +49,14 @@ enum Commands {
         #[arg(long, default_value = "true")]
         symbols: bool,
     },
+    Export {
+        #[arg(short, long)]
+        output: String,
+    },
+    Import {
+        #[arg(short, long)]
+        input: String,
+    },
 }
 
 fn main() {
@@ -60,12 +68,12 @@ fn main() {
         Commands::Add { service, tags, generate } => {
             println!("Enter your master password:");
             let master_password = read_password().expect("Failed to read master password");
-            let key: [u8; 32] = derive_key(&master_password);
+            let key = derive_key(&master_password);
 
             let password = if *generate {
                 let generated = password_manager.generate_password(PasswordConfig::default());
-                println!("Generated password: {}", generated);
-                generated
+                println!("Generated password: {}", &*generated);
+                generated.to_string()
             } else {
                 println!("Enter the password for {}: ", service);
                 read_password().expect("Failed to read password")
@@ -82,10 +90,10 @@ fn main() {
         Commands::Get { service } => {
             println!("Enter your master password:");
             let master_password = read_password().expect("Failed to read master password");
-            let key: [u8; 32] = derive_key(&master_password);
+            let key = derive_key(&master_password);
 
             match password_manager.get_password(service, &key) {
-                Ok(password) => println!("Password for {}: {}", service, password),
+                Ok(password) => println!("Password for {}: {}", service, &*password),
                 Err(e) => {
                     eprintln!("Failed to retrieve password: {}", e);
                     process::exit(1);
@@ -145,17 +153,53 @@ fn main() {
                 use_symbols: *symbols,
             };
             let password = password_manager.generate_password(config);
-            println!("Generated password: {}", password);
+            println!("Generated password: {}", &*password);
+        }
+        Commands::Export { output } => {
+            println!("Enter your master password:");
+            let master_password = read_password().expect("Failed to read master password");
+            let key = derive_key(&master_password);
+
+            match password_manager.export_passwords(&key) {
+                Ok(data) => {
+                    std::fs::write(output, data).unwrap_or_else(|e| {
+                        eprintln!("Failed to write export file: {}", e);
+                        process::exit(1);
+                    });
+                    println!("Passwords exported successfully to {}", output);
+                }
+                Err(e) => {
+                    eprintln!("Failed to export passwords: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        Commands::Import { input } => {
+            println!("Enter your master password:");
+            let master_password = read_password().expect("Failed to read master password");
+            let key = derive_key(&master_password);
+
+            let data = std::fs::read_to_string(input).unwrap_or_else(|e| {
+                eprintln!("Failed to read import file: {}", e);
+                process::exit(1);
+            });
+
+            match password_manager.import_passwords(&data, &key) {
+                Ok(_) => println!("Passwords imported successfully."),
+                Err(e) => {
+                    eprintln!("Failed to import passwords: {}", e);
+                    process::exit(1);
+                }
+            }
         }
     }
 }
 
-fn derive_key(master_password: &str) -> [u8; 32] {
-    let mut key = [0u8; 32];
-    let bytes = master_password.as_bytes();
-    let len = bytes.len().min(32);
-    key[..len].copy_from_slice(&bytes[..len]);
-    key
+fn derive_key(master_password: &str) -> Vec<u8> {
+    let salt = KeyDerivation::generate_salt();
+    KeyDerivation::derive_key(master_password.as_bytes(), &salt)
+        .expect("Failed to derive key")
+        .to_vec()
 }
 
 fn config() -> Result<AppSettings, ConfigError> {
@@ -165,4 +209,4 @@ fn config() -> Result<AppSettings, ConfigError> {
         .build()?;
 
     settings.try_deserialize()
-}
+} 
