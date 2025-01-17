@@ -49,4 +49,4 @@ impl From<argon2::Error> for PasswordError {
     fn from(error: argon2::Error) -> Self {
         PasswordError::KeyDerivationError(error.to_string())
     }
-} 
+}

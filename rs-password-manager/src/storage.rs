@@ -1,13 +1,13 @@
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use chrono::Utc;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use chrono::Utc;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use zeroize::Zeroizing;
 
 use crate::crypto::KeyDerivation;
 use crate::error::PasswordError;
-use crate::models::{ServiceCredential, ExportData};
+use crate::models::{ExportData, ServiceCredential};
 
 pub struct CredentialStorage {
     storage_path: String,
@@ -28,9 +28,9 @@ impl CredentialStorage {
         let mut credentials = self.load_credentials()?;
         let salt = KeyDerivation::generate_salt();
         let key = KeyDerivation::derive_key(master_key, &salt)?;
-        
+
         let encrypted_password = KeyDerivation::encrypt_password(password, &key)?;
-        
+
         let now = Utc::now();
         let credential = ServiceCredential {
             service_name: service.to_string(),
@@ -51,9 +51,13 @@ impl CredentialStorage {
         self.save_credentials(&credentials)
     }
 
-    pub fn get_credential(&self, service: &str, master_key: &[u8]) -> Result<Zeroizing<String>, PasswordError> {
+    pub fn get_credential(
+        &self,
+        service: &str,
+        master_key: &[u8],
+    ) -> Result<Zeroizing<String>, PasswordError> {
         let credentials = self.load_credentials()?;
-        
+
         let credential = credentials
             .iter()
             .find(|c| c.service_name == service)
@@ -71,15 +75,18 @@ impl CredentialStorage {
             .collect())
     }
 
-    pub fn search_services(&self, query: &str) -> Result<Vec<(String, Vec<String>)>, PasswordError> {
+    pub fn search_services(
+        &self,
+        query: &str,
+    ) -> Result<Vec<(String, Vec<String>)>, PasswordError> {
         let credentials = self.load_credentials()?;
         let query = query.to_lowercase();
-        
+
         Ok(credentials
             .into_iter()
             .filter(|c| {
-                c.service_name.to_lowercase().contains(&query) ||
-                c.tags.iter().any(|t| t.to_lowercase().contains(&query))
+                c.service_name.to_lowercase().contains(&query)
+                    || c.tags.iter().any(|t| t.to_lowercase().contains(&query))
             })
             .map(|c| (c.service_name.clone(), c.tags.clone()))
             .collect())
@@ -97,15 +104,19 @@ impl CredentialStorage {
         Ok(BASE64.encode(json))
     }
 
-    pub fn import_credentials(&self, export_data: &str, _master_key: &[u8]) -> Result<(), PasswordError> {
+    pub fn import_credentials(
+        &self,
+        export_data: &str,
+        _master_key: &[u8],
+    ) -> Result<(), PasswordError> {
         let json = BASE64.decode(export_data)?;
-        let json = String::from_utf8(json)
-            .map_err(|e| PasswordError::ImportError(e.to_string()))?;
-        
+        let json =
+            String::from_utf8(json).map_err(|e| PasswordError::ImportError(e.to_string()))?;
+
         let data: ExportData = serde_json::from_str(&json)?;
-        
+
         // TODO: Verify checksum
-        
+
         self.save_credentials(&data.credentials)
     }
 
@@ -161,10 +172,11 @@ mod tests {
         let (storage, _temp_file) = create_test_storage();
         let master_key = b"test_master_key";
         let password = "TestPass123!";
-        
-        storage.add_credential("test_service", password, master_key, vec![])
+
+        storage
+            .add_credential("test_service", password, master_key, vec![])
             .unwrap();
-            
+
         let retrieved = storage.get_credential("test_service", master_key).unwrap();
         assert_eq!(&*retrieved, password);
     }
@@ -173,12 +185,14 @@ mod tests {
     fn test_update_credential() {
         let (storage, _temp_file) = create_test_storage();
         let master_key = b"test_master_key";
-        
-        storage.add_credential("test_service", "OldPass123!", master_key, vec![])
+
+        storage
+            .add_credential("test_service", "OldPass123!", master_key, vec![])
             .unwrap();
-        storage.add_credential("test_service", "NewPass123!", master_key, vec![])
+        storage
+            .add_credential("test_service", "NewPass123!", master_key, vec![])
             .unwrap();
-            
+
         let retrieved = storage.get_credential("test_service", master_key).unwrap();
         assert_eq!(&*retrieved, "NewPass123!");
     }
@@ -188,17 +202,27 @@ mod tests {
         let (storage, _temp_file) = create_test_storage();
         let master_key = b"test_master_key";
         let password = "TestPass123!";
-        
-        storage.add_credential("test_service", password, master_key, vec!["tag1".to_string()])
+
+        storage
+            .add_credential(
+                "test_service",
+                password,
+                master_key,
+                vec!["tag1".to_string()],
+            )
             .unwrap();
-            
+
         let export_data = storage.export_credentials(master_key).unwrap();
-        
+
         // Create new storage
         let (new_storage, _temp_file) = create_test_storage();
-        new_storage.import_credentials(&export_data, master_key).unwrap();
-        
-        let retrieved = new_storage.get_credential("test_service", master_key).unwrap();
+        new_storage
+            .import_credentials(&export_data, master_key)
+            .unwrap();
+
+        let retrieved = new_storage
+            .get_credential("test_service", master_key)
+            .unwrap();
         assert_eq!(&*retrieved, password);
     }
 
@@ -206,16 +230,21 @@ mod tests {
     fn test_search_with_tags() {
         let (storage, _temp_file) = create_test_storage();
         let master_key = b"test_master_key";
-        
-        storage.add_credential("email1", "Pass123!", master_key, vec!["email".to_string()])
+
+        storage
+            .add_credential("email1", "Pass123!", master_key, vec!["email".to_string()])
             .unwrap();
-        storage.add_credential("email2", "Pass123!", master_key, vec!["email".to_string()])
+        storage
+            .add_credential("email2", "Pass123!", master_key, vec!["email".to_string()])
             .unwrap();
-        storage.add_credential("other", "Pass123!", master_key, vec!["other".to_string()])
+        storage
+            .add_credential("other", "Pass123!", master_key, vec!["other".to_string()])
             .unwrap();
-            
+
         let results = storage.search_services("email").unwrap();
         assert_eq!(results.len(), 2);
-        assert!(results.iter().all(|(_, tags)| tags.contains(&"email".to_string())));
+        assert!(results
+            .iter()
+            .all(|(_, tags)| tags.contains(&"email".to_string())));
     }
-} 
+}

@@ -1,9 +1,9 @@
-use std::process;
 use clap::{Parser, Subcommand};
 use config::{Config, ConfigError};
 use rpassword::read_password;
+use rs_password_manager::{KeyDerivation, PasswordConfig, PasswordManager};
 use serde::Deserialize;
-use rs_password_manager::{PasswordManager, PasswordConfig, KeyDerivation};
+use std::process;
 
 #[derive(Parser)]
 #[command(name = "Password Manager")]
@@ -65,7 +65,11 @@ fn main() {
     let password_manager = PasswordManager::new(settings.storage_path);
 
     match &cli.command {
-        Commands::Add { service, tags, generate } => {
+        Commands::Add {
+            service,
+            tags,
+            generate,
+        } => {
             println!("Enter your master password:");
             let master_password = read_password().expect("Failed to read master password");
             let key = derive_key(&master_password);
@@ -100,51 +104,53 @@ fn main() {
                 }
             }
         }
-        Commands::List => {
-            match password_manager.list_services() {
-                Ok(services) => {
-                    if services.is_empty() {
-                        println!("No passwords stored.");
-                    } else {
-                        println!("Stored passwords:");
-                        for (service, tags) in services {
-                            if tags.is_empty() {
-                                println!("- {}", service);
-                            } else {
-                                println!("- {} (tags: {})", service, tags.join(", "));
-                            }
+        Commands::List => match password_manager.list_services() {
+            Ok(services) => {
+                if services.is_empty() {
+                    println!("No passwords stored.");
+                } else {
+                    println!("Stored passwords:");
+                    for (service, tags) in services {
+                        if tags.is_empty() {
+                            println!("- {}", service);
+                        } else {
+                            println!("- {} (tags: {})", service, tags.join(", "));
                         }
                     }
                 }
-                Err(e) => {
-                    eprintln!("Failed to list services: {}", e);
-                    process::exit(1);
-                }
             }
-        }
-        Commands::Search { query } => {
-            match password_manager.search_services(query) {
-                Ok(services) => {
-                    if services.is_empty() {
-                        println!("No matching services found.");
-                    } else {
-                        println!("Matching services:");
-                        for (service, tags) in services {
-                            if tags.is_empty() {
-                                println!("- {}", service);
-                            } else {
-                                println!("- {} (tags: {})", service, tags.join(", "));
-                            }
+            Err(e) => {
+                eprintln!("Failed to list services: {}", e);
+                process::exit(1);
+            }
+        },
+        Commands::Search { query } => match password_manager.search_services(query) {
+            Ok(services) => {
+                if services.is_empty() {
+                    println!("No matching services found.");
+                } else {
+                    println!("Matching services:");
+                    for (service, tags) in services {
+                        if tags.is_empty() {
+                            println!("- {}", service);
+                        } else {
+                            println!("- {} (tags: {})", service, tags.join(", "));
                         }
                     }
                 }
-                Err(e) => {
-                    eprintln!("Failed to search services: {}", e);
-                    process::exit(1);
-                }
             }
-        }
-        Commands::Generate { length, uppercase, lowercase, numbers, symbols } => {
+            Err(e) => {
+                eprintln!("Failed to search services: {}", e);
+                process::exit(1);
+            }
+        },
+        Commands::Generate {
+            length,
+            uppercase,
+            lowercase,
+            numbers,
+            symbols,
+        } => {
             let config = PasswordConfig {
                 length: *length,
                 use_uppercase: *uppercase,
@@ -209,4 +215,4 @@ fn config() -> Result<AppSettings, ConfigError> {
         .build()?;
 
     settings.try_deserialize()
-} 
+}

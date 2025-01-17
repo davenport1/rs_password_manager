@@ -52,7 +52,8 @@ impl PasswordManager {
         self.validator.validate_password(password)?;
 
         // Store the password
-        self.storage.add_credential(service, password, master_key, tags)
+        self.storage
+            .add_credential(service, password, master_key, tags)
     }
 
     /// Retrieves a password for a service.
@@ -64,7 +65,11 @@ impl PasswordManager {
     /// # Returns
     /// * `Ok(String)` containing the password if successful
     /// * `Err(PasswordError)` if retrieval fails
-    pub fn get_password(&self, service: &str, master_key: &[u8]) -> Result<Zeroizing<String>, PasswordError> {
+    pub fn get_password(
+        &self,
+        service: &str,
+        master_key: &[u8],
+    ) -> Result<Zeroizing<String>, PasswordError> {
         self.storage.get_credential(service, master_key)
     }
 
@@ -77,7 +82,10 @@ impl PasswordManager {
     ///
     /// # Arguments
     /// * `query` - Search query to match against service names or tags
-    pub fn search_services(&self, query: &str) -> Result<Vec<(String, Vec<String>)>, PasswordError> {
+    pub fn search_services(
+        &self,
+        query: &str,
+    ) -> Result<Vec<(String, Vec<String>)>, PasswordError> {
         self.storage.search_services(query)
     }
 
@@ -102,7 +110,11 @@ impl PasswordManager {
     /// # Arguments
     /// * `export_data` - Exported data string
     /// * `master_key` - Master key used for decryption
-    pub fn import_passwords(&self, export_data: &str, master_key: &[u8]) -> Result<(), PasswordError> {
+    pub fn import_passwords(
+        &self,
+        export_data: &str,
+        master_key: &[u8],
+    ) -> Result<(), PasswordError> {
         self.storage.import_credentials(export_data, master_key)
     }
-} 
+}

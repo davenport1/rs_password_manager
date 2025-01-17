@@ -1,7 +1,7 @@
-use aes::{Aes256, BlockEncrypt, BlockDecrypt, NewBlockCipher};
 use aes::cipher::generic_array::GenericArray;
+use aes::{Aes256, BlockDecrypt, BlockEncrypt, NewBlockCipher};
 use argon2::Argon2;
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use zeroize::Zeroizing;
 
 use crate::error::PasswordError;
@@ -15,7 +15,7 @@ impl KeyDerivation {
     pub fn derive_key(password: &[u8], salt: &[u8]) -> Result<Zeroizing<Vec<u8>>, PasswordError> {
         let argon2 = Argon2::default();
         let mut output_key_material = Zeroizing::new(vec![0u8; KEY_LENGTH]);
-        
+
         argon2
             .hash_password_into(password, salt, &mut output_key_material)
             .map_err(|e| PasswordError::KeyDerivationError(e.to_string()))?;
@@ -37,11 +37,14 @@ impl KeyDerivation {
         Ok(block.to_vec())
     }
 
-    pub fn decrypt_password(encrypted: &[u8], key: &[u8]) -> Result<Zeroizing<String>, PasswordError> {
+    pub fn decrypt_password(
+        encrypted: &[u8],
+        key: &[u8],
+    ) -> Result<Zeroizing<String>, PasswordError> {
         let cipher = Aes256::new(GenericArray::from_slice(key));
         let mut block = GenericArray::clone_from_slice(encrypted);
         cipher.decrypt_block(&mut block);
-        
+
         String::from_utf8(block.to_vec())
             .map(|s| Zeroizing::new(s.trim_end_matches('\0').to_string()))
             .map_err(|e| PasswordError::DecryptionError(e.to_string()))
@@ -72,10 +75,10 @@ mod tests {
     fn test_encryption_decryption() {
         let password = "test_password";
         let key = vec![0u8; KEY_LENGTH];
-        
+
         let encrypted = KeyDerivation::encrypt_password(password, &key).unwrap();
         let decrypted = KeyDerivation::decrypt_password(&encrypted, &key).unwrap();
-        
+
         assert_eq!(&*decrypted, password);
     }
 
@@ -83,9 +86,9 @@ mod tests {
     fn test_salt_generation() {
         let salt1 = KeyDerivation::generate_salt();
         let salt2 = KeyDerivation::generate_salt();
-        
+
         assert_eq!(salt1.len(), SALT_LENGTH);
         assert_eq!(salt2.len(), SALT_LENGTH);
         assert_ne!(salt1, salt2);
     }
-} 
+}

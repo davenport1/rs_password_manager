@@ -1,6 +1,6 @@
-use rand::{Rng, thread_rng};
-use rand::seq::SliceRandom;
 use rand::prelude::IteratorRandom;
+use rand::seq::SliceRandom;
+use rand::{thread_rng, Rng};
 use zeroize::Zeroizing;
 
 use crate::error::PasswordError;
@@ -33,9 +33,10 @@ impl PasswordValidator {
 
     pub fn validate_password(&self, password: &str) -> Result<(), PasswordError> {
         if password.len() < self.min_length {
-            return Err(PasswordError::InvalidPassword(
-                format!("Password must be at least {} characters long", self.min_length)
-            ));
+            return Err(PasswordError::InvalidPassword(format!(
+                "Password must be at least {} characters long",
+                self.min_length
+            )));
         }
 
         let has_uppercase = password.chars().any(|c| c.is_uppercase());
@@ -59,9 +60,10 @@ impl PasswordValidator {
         }
 
         if !requirements.is_empty() {
-            return Err(PasswordError::InvalidPassword(
-                format!("Password must contain: {}", requirements.join(", "))
-            ));
+            return Err(PasswordError::InvalidPassword(format!(
+                "Password must contain: {}",
+                requirements.join(", ")
+            )));
         }
 
         Ok(())
@@ -70,7 +72,7 @@ impl PasswordValidator {
     pub fn generate_password(&self, config: PasswordConfig) -> Zeroizing<String> {
         let mut rng = thread_rng();
         let mut password = String::new();
-        
+
         // Ensure at least one character of each required type
         if config.use_uppercase {
             password.push(('A'..='Z').choose(&mut rng).unwrap());
@@ -82,7 +84,12 @@ impl PasswordValidator {
             password.push(('0'..='9').choose(&mut rng).unwrap());
         }
         if config.use_symbols {
-            password.push("!@#$%^&*()_+-=[]{}|;:,.<>?".chars().choose(&mut rng).unwrap());
+            password.push(
+                "!@#$%^&*()_+-=[]{}|;:,.<>?"
+                    .chars()
+                    .choose(&mut rng)
+                    .unwrap(),
+            );
         }
 
         // Build character set for remaining characters
@@ -143,7 +150,7 @@ mod tests {
         };
 
         let password = validator.generate_password(config);
-        
+
         assert_eq!(password.len(), 16);
         assert!(password.chars().any(|c| c.is_uppercase()));
         assert!(password.chars().any(|c| c.is_lowercase()));
@@ -159,4 +166,4 @@ mod tests {
         let password = validator.generate_password(config);
         assert!(validator.validate_password(&password).is_ok());
     }
-} 
+}
